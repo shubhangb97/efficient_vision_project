@@ -20,8 +20,8 @@ class Datasets(Dataset):
 
     def __init__(self, data_dir, input_n=20, output_n=40, skip_rate=40, sample_rate=2, prefix="train", num_files=None):
         self.path_to_data = data_dir
-        self.in_n = input_n
-        self.out_n = output_n
+        self.in_n = input_n*sample_rate
+        self.out_n = output_n*sample_rate
         self.sample_rate = sample_rate
         self.p3d = {}
         self.audio = {}
@@ -67,13 +67,13 @@ class Datasets(Dataset):
     def __getitem__(self, item):
         key, start_frame = self.data_idx[item]
 
-        fs = np.arange(start_frame, start_frame + self.in_n, self.sample_rate)
-        ps = np.arange(start_frame + self.in_n, start_frame + self.in_n + self.out_n, self.sample_rate)
+        fs = np.arange(start_frame, start_frame + self.in_n + self.out_n, self.sample_rate)
+        # ps = np.arange(start_frame + self.in_n, start_frame + self.in_n + self.out_n, self.sample_rate)
 
         # print(fs[0], ps[-1], self.p3d[key].shape, key, start_frame)
 
-        return self.p3d[key][fs], self.audio[key][fs], self.p3d[key][ps], self.audio[key][ps]
-
+        # return self.p3d[key][fs], self.audio[key][fs], self.p3d[key][ps], self.audio[key][ps]
+        return self.p3d[key][fs], self.audio[key][fs]
 
 if __name__ == '__main__':
     print("Testing AIST++ dataset")
@@ -81,4 +81,4 @@ if __name__ == '__main__':
 
     dataloader = DataLoader(ds, num_workers=1, batch_size=7, shuffle=True)
     example_batch = next(iter(dataloader))
-    print(example_batch)
+    print(example_batch, example_batch[0].shape)
