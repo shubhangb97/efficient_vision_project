@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import math
 
-
+from pdb import set_trace as breakpoint
 
 
 class ConvTemporalGraphical(nn.Module):
@@ -54,9 +54,11 @@ class ConvTemporalGraphical(nn.Module):
         self.Z.data.uniform_(-stdv,stdv)
         '''
     def forward(self, x):
+        breakpoint()
         x = torch.einsum('nctv,vtq->ncqv', (x, self.T))
         ## x=self.prelu(x)
         x = torch.einsum('nctv,tvw->nctw', (x, self.A))
+        #n  batch size c channels t time v joint w joint q time
         ## x = torch.einsum('nctv,wvtq->ncqw', (x, self.Z))
         return x.contiguous()
 
