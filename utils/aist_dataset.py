@@ -1,12 +1,14 @@
-from torch.utils.data import Dataset
+from tracemalloc import start
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from h5py import File
 import scipy.io as sio
-from utils import data_utils
+# from utils import data_utils
 from matplotlib import pyplot as plt
 import torch
+from tfrecord.torch.dataset import TFRecordDataset
 
-import os
+import os 
 
 '''
 adapted from
@@ -16,128 +18,67 @@ https://github.com/wei-mao-2019/HisRepItself/blob/master/utils/h36motion3d.py
 
 class Datasets(Dataset):
 
-    def __init__(self, data_dir,input_n,output_n,skip_rate, actions=None, split=0):
-        """
-        :param path_to_data:
-        :param actions:
-        :param input_n:
-        :param output_n:
-        :param dct_used:
-        :param split: 0 train, 1 testing, 2 validation
-        :param sample_rate:
-        """
-        self.path_to_data = os.path.join(data_dir,'h3.6m\dataset')
-        self.split = split
+    def __init__(self, data_dir, input_n=20, output_n=40, skip_rate=40, sample_rate=2, prefix="train", num_files=None):
+        self.path_to_data = data_dir
         self.in_n = input_n
         self.out_n = output_n
-        self.sample_rate = 2
+        self.sample_rate = sample_rate
         self.p3d = {}
+        self.audio = {}
         self.data_idx = []
         seq_len = self.in_n + self.out_n
-        subs = np.array([[1, 6, 7, 8, 9], [11], [5]])
-        # acts = data_utils.define_actions(actions)
-        if actions is None:
-            acts = ["walking", "eating", "smoking", "discussion", "directions",
-                    "greeting", "phoning", "posing", "purchases", "sitting",
-                    "sittingdown", "takingphoto", "waiting", "walkingdog",
-                    "walkingtogether"]
-        else:
-            acts = actions
-        # subs = np.array([[1], [11], [5]])
-        # acts = ['walking']
-        # 32 human3.6 joint name:
-        joint_name = ["Hips", "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase", "Site", "LeftUpLeg", "LeftLeg",
-                      "LeftFoot",
-                      "LeftToeBase", "Site", "Spine", "Spine1", "Neck", "Head", "Site", "LeftShoulder", "LeftArm",
-                      "LeftForeArm",
-                      "LeftHand", "LeftHandThumb", "Site", "L_Wrist_End", "Site", "RightShoulder", "RightArm",
-                      "RightForeArm",
-                      "RightHand", "RightHandThumb", "Site", "R_Wrist_End", "Site"]
 
-        subs = subs[split]
-        key = 0
-        for subj in subs:
-            for action_idx in np.arange(len(acts)):
-                action = acts[action_idx]
-                if self.split <= 1:
-                    for subact in [1, 2]:  # subactions
-                        print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, subact))
-                        filename = '{0}/S{1}/{2}_{3}.txt'.format(self.path_to_data, subj, action, subact)
-                        the_sequence = data_utils.readCSVasFloat(filename)
-                        n, d = the_sequence.shape
-                        even_list = range(0, n, self.sample_rate)
-                        num_frames = len(even_list)
-                        the_sequence = np.array(the_sequence[even_list, :])
-                        the_sequence = torch.from_numpy(the_sequence).float().cuda()
-                        # remove global rotation and translation
-                        the_sequence[:, 0:6] = 0
-                        p3d = data_utils.expmap2xyz_torch(the_sequence)
-                        # self.p3d[(subj, action, subact)] = p3d.view(num_frames, -1).cpu().data.numpy()
-                        self.p3d[key] = p3d.view(num_frames, -1).cpu().data.numpy()
+        file_idx=0
+        key=0
+        for filename in os.listdir(self.path_to_data):
+            if num_files and file_idx>=num_files:
+                break
+            f = os.path.join(self.path_to_data, filename)
+            if os.path.isfile(f) and prefix in f:
+                print("Processing %s" % filename)
+            else:
+                # print("Skipping %s" % filename)
+                continue
+            file_idx += 1
+            dataset = TFRecordDataset(f, index_path=None, description=None)
+            loader = torch.utils.data.DataLoader(dataset, batch_size=1)
 
-                        valid_frames = np.arange(0, num_frames - seq_len + 1, skip_rate)
+            for i, data in enumerate(loader):
+                pn, pd = data['motion_sequence_shape'][0]
+                pn=pn.item()
+                pd=pd.item()
+                self.p3d[key] = data['motion_sequence'].view((pn, pd))
+                an, ad = data['audio_sequence_shape'][0]
+                an=an.item()
+                ad=ad.item()
+                self.audio[key] = data['audio_sequence'].view((an, ad))
 
-                        # tmp_data_idx_1 = [(subj, action, subact)] * len(valid_frames)
-                        tmp_data_idx_1 = [key] * len(valid_frames)
-                        tmp_data_idx_2 = list(valid_frames)
-                        self.data_idx.extend(zip(tmp_data_idx_1, tmp_data_idx_2))
-                        key += 1
-                else:
-                    print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, 1))
-                    filename = '{0}/S{1}/{2}_{3}.txt'.format(self.path_to_data, subj, action, 1)
-                    the_sequence1 = data_utils.readCSVasFloat(filename)
-                    n, d = the_sequence1.shape
-                    even_list = range(0, n, self.sample_rate)
+                start_frames = np.arange(0, pn-seq_len+1, skip_rate)
+                self.data_idx = self.data_idx + [(key, sf) for sf in start_frames]
 
-                    num_frames1 = len(even_list)
-                    the_sequence1 = np.array(the_sequence1[even_list, :])
-                    the_seq1 = torch.from_numpy(the_sequence1).float().cuda()
-                    the_seq1[:, 0:6] = 0
-                    p3d1 = data_utils.expmap2xyz_torch(the_seq1)
-                    # self.p3d[(subj, action, 1)] = p3d1.view(num_frames1, -1).cpu().data.numpy()
-                    self.p3d[key] = p3d1.view(num_frames1, -1).cpu().data.numpy()
+                assert (start_frames<self.p3d[key].shape[0]).all()
+                # print(key, start_frames, self.p3d[key].shape)
 
-                    print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, 2))
-                    filename = '{0}/S{1}/{2}_{3}.txt'.format(self.path_to_data, subj, action, 2)
-                    the_sequence2 = data_utils.readCSVasFloat(filename)
-                    n, d = the_sequence2.shape
-                    even_list = range(0, n, self.sample_rate)
-
-                    num_frames2 = len(even_list)
-                    the_sequence2 = np.array(the_sequence2[even_list, :])
-                    the_seq2 = torch.from_numpy(the_sequence2).float().cuda()
-                    the_seq2[:, 0:6] = 0
-                    p3d2 = data_utils.expmap2xyz_torch(the_seq2)
-
-                    # self.p3d[(subj, action, 2)] = p3d2.view(num_frames2, -1).cpu().data.numpy()
-                    self.p3d[key + 1] = p3d2.view(num_frames2, -1).cpu().data.numpy()
-
-                    # print("action:{}".format(action))
-                    # print("subact1:{}".format(num_frames1))
-                    # print("subact2:{}".format(num_frames2))
-                    fs_sel1, fs_sel2 = data_utils.find_indices_256(num_frames1, num_frames2, seq_len,
-                                                                   input_n=self.in_n)
-
-                    valid_frames = fs_sel1[:, 0]
-                    tmp_data_idx_1 = [key] * len(valid_frames)
-                    tmp_data_idx_2 = list(valid_frames)
-                    self.data_idx.extend(zip(tmp_data_idx_1, tmp_data_idx_2))
-
-                    valid_frames = fs_sel2[:, 0]
-                    tmp_data_idx_1 = [key + 1] * len(valid_frames)
-                    tmp_data_idx_2 = list(valid_frames)
-                    self.data_idx.extend(zip(tmp_data_idx_1, tmp_data_idx_2))
-                    key += 2
-
-        # ignore constant joints and joints at same position with other joints
-        joint_to_ignore = np.array([0, 1, 6, 11, 16, 20, 23, 24, 28, 31])
-        dimensions_to_ignore = np.concatenate((joint_to_ignore * 3, joint_to_ignore * 3 + 1, joint_to_ignore * 3 + 2))
-        self.dimensions_to_use = np.setdiff1d(np.arange(96), dimensions_to_ignore)
+                key=key+1
 
     def __len__(self):
         return np.shape(self.data_idx)[0]
 
     def __getitem__(self, item):
         key, start_frame = self.data_idx[item]
-        fs = np.arange(start_frame, start_frame + self.in_n + self.out_n)
-        return self.p3d[key][fs]
+
+        fs = np.arange(start_frame, start_frame + self.in_n, self.sample_rate)
+        ps = np.arange(start_frame + self.in_n, start_frame + self.in_n + self.out_n, self.sample_rate)
+
+        # print(fs[0], ps[-1], self.p3d[key].shape, key, start_frame)
+
+        return self.p3d[key][fs], self.audio[key][fs], self.p3d[key][ps], self.audio[key][ps]
+
+
+if __name__ == '__main__':
+    print("Testing AIST++ dataset")
+    ds = Datasets("/Users/eash/UIUC/CS 598- Vision/project/tf_sstables/")
+
+    dataloader = DataLoader(ds, num_workers=1, batch_size=7, shuffle=True)
+    example_batch = next(iter(dataloader))
+    print(example_batch)
