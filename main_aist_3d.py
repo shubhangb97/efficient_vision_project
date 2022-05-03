@@ -46,7 +46,7 @@ def train():
     #                 46, 47, 51, 52, 53, 54, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68,
     #                 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 88, 89, 90, 91, 92])
     #dim_used = np.arange(219)
-    dim_used = np.arange(243) # 27 * 9
+    dim_used = np.arange(225) # 25 * 9
     # assumed the x y z are 9*1 with 0 pads for each dimension
 
     for epoch in range(args.n_epochs):
@@ -60,12 +60,8 @@ def train():
           batch=batch.to(device)
           batch_dim=batch.shape[0]
           n+=batch_dim
-          assert batch.shape[2] == 219
+          assert batch.shape[2] == 225
           print(batch.shape)
-          updated_batch = torch.zeros(batch.shape[0],batch.shape[1],243).to(device)
-          dim_non_zero = np.array([1]+8*[0]+[1]+8*[0]+[1]+8*[0])
-          dim_non_zero = np.concat(dim_non_zero, np.ones([216]), axis = 0)
-          updated_batch[dim_non_zero] = batch
 
           #sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
           sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
