@@ -33,11 +33,11 @@ def train():
 
     train_loss = []
     val_loss = []
-    dataset = datasets.Datasets(args.data_dir,args.input_n,args.output_n,args.skip_rate, prefix="train")
+    dataset = datasets.Datasets(args.p3d_pth, args.audio_pth,args.input_n,args.output_n,args.skip_rate, prefix="train")
     print('>>> Training dataset length: {:d}'.format(dataset.__len__()))
     data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
-    vald_dataset = datasets.Datasets(args.data_dir,args.input_n,args.output_n,args.skip_rate, prefix="val")
+    vald_dataset = datasets.Datasets(args.p3d_val_pth, args.audio_val_pth,args.input_n,args.output_n,args.skip_rate, prefix="val")
     print('>>> Validation dataset length: {:d}'.format(vald_dataset.__len__()))
     vald_loader = DataLoader(vald_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
@@ -152,7 +152,7 @@ def test():
   for action in actions:
     running_loss=0
     n=0
-    dataset_test = datasets.Datasets(args.data_dir,args.input_n,args.output_n,args.skip_rate, prefix="val")
+    dataset_test = datasets.Datasets(args.p3d_pth, args.audio_pth,args.input_n,args.output_n,args.skip_rate, prefix="val")
     print('>>> test action for sequences: {:d}'.format(dataset_test.__len__()))
 
     test_loader = DataLoader(dataset_test, batch_size=args.batch_size_test, shuffle=False, num_workers=0, pin_memory=True)

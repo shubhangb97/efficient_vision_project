@@ -7,6 +7,10 @@ parser = argparse.ArgumentParser(description='Arguments for running the scripts'
 
 
 parser.add_argument('--data_dir',type=str,default='../datasets/tf_sstables',help='path to the unziped dataset directories(H36m/AMASS/3DPW)')
+parser.add_argument('--p3d_pth',type=str,default='../data/p3d_train.pth',help='path to the training preprocessed pose pth file')
+parser.add_argument('--audio_pth',type=str,default='../data/audio_train.pth',help='path to the training preprocessed audio pth file')
+parser.add_argument('--p3d_val_pth',type=str,default='../data/p3d_val.pth',help='path to the validation preprocessed pose pth file')
+parser.add_argument('--audio_val_pth',type=str,default='../data/audio_val.pth',help='path to the validation preprocessed audio pth file')
 parser.add_argument('--input_n',type=int,default=10,help="number of model's input frames")
 parser.add_argument('--output_n',type=int,default=10,help="number of model's output frames")
 parser.add_argument('--skip_rate',type=int,default=1,choices=[1,5],help='rate of frames to skip,defaults=1 for H36M or 5 for AMASS/3DPW')
