@@ -1,4 +1,4 @@
-import os 
+import os
 from utils import aist_dataset as datasets
 from torch.utils.data import DataLoader
 from model import *
@@ -27,7 +27,7 @@ def train():
 
 
     optimizer=optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-05)
-    
+
     if args.use_scheduler:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
 
@@ -45,15 +45,15 @@ def train():
     #                 26, 27, 28, 29, 30, 31, 32, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
     #                 46, 47, 51, 52, 53, 54, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68,
     #                 75, 76, 77, 78, 79, 80, 81, 82, 83, 87, 88, 89, 90, 91, 92])
-    dim_used = np.arange(219)
-
-
+    #dim_used = np.arange(219)
+    dim_used = np.arange(243)
+    # assumed the x y z are 9*1 with 0 pads for each dimension
 
     for epoch in range(args.n_epochs):
       running_loss=0
       n=0
       model.train()
-      for batch in enumerate(data_loader): 
+      for batch in enumerate(data_loader):
           cnt, batch = batch
           batch, _ = batch
         #   print(len(batch))
@@ -62,42 +62,43 @@ def train():
           n+=batch_dim
 
           print(batch.shape)
-          
-          sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
-          sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//3,3)
+
+          #sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
+          sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
+          sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
           print(sequences_train.shape, sequences_gt.shape)
 
 
-          optimizer.zero_grad() 
-
+          optimizer.zero_grad()
+          # change
           sequences_predict=model(sequences_train).permute(0,1,3,2)
-          
+
           print(sequences_predict.shape, sequences_gt.shape)
           loss=mpjpe_error(sequences_predict,sequences_gt)
 
 
           if cnt % 200 == 0:
-            print('[%d, %5d]  training loss: %.3f' %(epoch + 1, cnt + 1, loss.item())) 
+            print('[%d, %5d]  training loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
 
-          loss.backward()  
+          loss.backward()
           if args.clip_grad is not None:
             torch.nn.utils.clip_grad_norm_(model.parameters(),args.clip_grad)
 
           optimizer.step()
           running_loss += loss*batch_dim
 
-      train_loss.append(running_loss.detach().cpu()/n)  
+      train_loss.append(running_loss.detach().cpu()/n)
       model .eval()
       with torch.no_grad():
-          running_loss=0 
+          running_loss=0
           n=0
           for cnt,batch in enumerate(vald_loader):
               batch=batch.to(device)
               batch_dim=batch.shape[0]
               n+=batch_dim
-              
-              
+
+
               sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
               sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//3,3)
 
@@ -107,7 +108,7 @@ def train():
 
               loss=mpjpe_error(sequences_predict,sequences_gt)
               if cnt % 200 == 0:
-                        print('[%d, %5d]  validation loss: %.3f' %(epoch + 1, cnt + 1, loss.item())) 
+                        print('[%d, %5d]  validation loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
               running_loss+=loss*batch_dim
           val_loss.append(running_loss.detach().cpu()/n)
       if args.use_scheduler:
@@ -118,7 +119,7 @@ def train():
         print('----saving model-----')
         torch.save(model.state_dict(),os.path.join(args.model_path,model_name))
 
-        
+
         plt.figure(1)
         plt.plot(train_loss, 'r', label='Train loss')
         plt.plot(val_loss, 'g', label='Val loss')
@@ -129,7 +130,7 @@ def test():
 
   model.load_state_dict(torch.load(os.path.join(args.model_path,model_name)))
   model.eval()
-  accum_loss=0  
+  accum_loss=0
   n_batches=0 # number of batches for all the sequences
   actions=define_actions(args.actions_to_consider)
 #   dim_used = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25,
@@ -159,14 +160,14 @@ def test():
         batch=batch.to(device)
         batch_dim=batch.shape[0]
         n+=batch_dim
-        
-        
+
+
         all_joints_seq=batch.clone()[:, args.input_n:args.input_n+args.output_n,:]
 
         sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
         sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, :]
 
-        
+
 
         sequences_predict=model(sequences_train).permute(0,1,3,2).contiguous().view(-1,args.output_n,len(dim_used))
 
@@ -196,6 +197,3 @@ if __name__ == '__main__':
        model.load_state_dict(torch.load(os.path.join(args.model_path,model_name)))
        model.eval()
        visualize(args.input_n,args.output_n,args.visualize_from,args.data_dir,model,device,args.n_viz,args.skip_rate,args.actions_to_consider)
-
-
-
