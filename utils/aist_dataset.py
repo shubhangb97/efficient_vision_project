@@ -28,7 +28,7 @@ class Datasets(Dataset):
 
         file_idx = 0
         for key in self.p3d.keys():
-            if file_idx >= num_files:
+            if num_files and file_idx >= num_files:
                 break
             file_idx += 1
             p3d_data = self.p3d[key]

@@ -11,6 +11,7 @@ from utils.loss_funcs import *
 from utils.data_utils import define_actions
 from utils.h36_3d_viz import visualize
 from utils.parser import args
+from pdb import set_trace as breakpoint
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
@@ -33,11 +34,11 @@ def train():
 
     train_loss = []
     val_loss = []
-    dataset = datasets.Datasets(args.p3d_pth, args.audio_pth,args.input_n,args.output_n,args.skip_rate, prefix="train")
+    dataset = datasets.Datasets(args.p3d_pth, args.audio_pth,args.input_n,args.output_n,args.skip_rate)
     print('>>> Training dataset length: {:d}'.format(dataset.__len__()))
     data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
-    vald_dataset = datasets.Datasets(args.p3d_val_pth, args.audio_val_pth,args.input_n,args.output_n,args.skip_rate, prefix="val")
+    vald_dataset = datasets.Datasets(args.p3d_val_pth, args.audio_val_pth,args.input_n,args.output_n,args.skip_rate)
     print('>>> Validation dataset length: {:d}'.format(vald_dataset.__len__()))
     vald_loader = DataLoader(vald_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
@@ -61,20 +62,19 @@ def train():
           batch_dim=batch.shape[0]
           n+=batch_dim
           assert batch.shape[2] == 225
-          print(batch.shape)
+          #print(batch.shape)
 
           #sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
           sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
           sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-          print(sequences_train.shape, sequences_gt.shape)
+          #print(sequences_train.shape, sequences_gt.shape)
 
 
           optimizer.zero_grad()
           # change
-          sequences_predict=model(sequences_train).permute(0,1,3,2)
-
-          print(sequences_predict.shape, sequences_gt.shape)
+          sequences_predict=model(sequences_train).permute(0,3,1,2)#.permute(0,1,3,2)
+          #print(sequences_predict.shape, sequences_gt.shape)
           loss=mpjpe_error(sequences_predict,sequences_gt)
 
 
@@ -94,6 +94,7 @@ def train():
           running_loss=0
           n=0
           for cnt,batch in enumerate(vald_loader):
+              batch, _ = batch
               batch=batch.to(device)
               batch_dim=batch.shape[0]
               n+=batch_dim
@@ -148,7 +149,7 @@ def test():
   for action in actions:
     running_loss=0
     n=0
-    dataset_test = datasets.Datasets(args.p3d_pth, args.audio_pth,args.input_n,args.output_n,args.skip_rate, prefix="val")
+    dataset_test = datasets.Datasets(args.p3d_pth, args.audio_pth,args.input_n,args.output_n,args.skip_rate)
     print('>>> test action for sequences: {:d}'.format(dataset_test.__len__()))
 
     test_loader = DataLoader(dataset_test, batch_size=args.batch_size_test, shuffle=False, num_workers=0, pin_memory=True)

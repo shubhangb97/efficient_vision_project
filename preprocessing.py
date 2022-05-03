@@ -4,10 +4,10 @@ import numpy as np
 from tfrecord.torch.dataset import TFRecordDataset
 
 
-tf_dir = "/Users/eash/UIUC/CS 598- Vision/project/tf_sstables/"
+tf_dir = "../datasets/tf_sstables/"
 num_files = None
-# prefix = "train"
-prefix = "val"
+prefix = "train"
+#prefix = "val"
 
 p3d = {}
 audio = {}
