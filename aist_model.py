@@ -200,55 +200,66 @@ class Model(nn.Module):
                  input_time_frame,
                  output_time_frame,
                  st_gcnn_dropout,
-                 joints_to_consider,
+                 joints_to_consider, music_dim,
                  n_txcnn_layers,
                  txc_kernel_size,
-                 txc_dropout,
+                 txc_dropout,step_size, output_step_size,
+                 bidirectional=True,
                  bias=True):
 
         super(Model,self).__init__()
         self.input_time_frame=input_time_frame
         self.output_time_frame=output_time_frame
         self.joints_to_consider=joints_to_consider
+        self.music_dim = music_dim
         self.st_gcnns=nn.ModuleList()
         self.n_txcnn_layers=n_txcnn_layers
         self.txcnns=nn.ModuleList()
 
+        self.audio_cnn = CNN_layer(music_dim,64,[3,1],txc_dropout)
 
         self.st_gcnns.append(ST_GCNN_layer(input_channels,64,[1,1],1,input_time_frame,
                                            joints_to_consider,st_gcnn_dropout))
         self.st_gcnns.append(ST_GCNN_layer(64,32,[1,1],1,input_time_frame,
-                                               joints_to_consider,st_gcnn_dropout))
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
 
         self.st_gcnns.append(ST_GCNN_layer(32,64,[1,1],1,input_time_frame,
-                                               joints_to_consider,st_gcnn_dropout))
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
 
         self.st_gcnns.append(ST_GCNN_layer(64,input_channels,[1,1],1,input_time_frame,
-                                               joints_to_consider,st_gcnn_dropout))
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
 
+        self.rnn_audio_cnn = CNN_layer(music_dim,64,[step_size,1],txc_dropout)
+
+        self.D = 2 if bidirectional else 1
+        self.num_layers_rnn = num_layers
 
                 # at this point, we must permute the dimensions of the gcn network, from (N,C,T,V) into (N,T,C,V)
-        self.txcnns.append(CNN_layer(input_time_frame,output_time_frame,txc_kernel_size,txc_dropout)) # with kernel_size[3,3] the dimensinons of C,V will be maintained
-        for i in range(1,n_txcnn_layers):
-            self.txcnns.append(CNN_layer(output_time_frame,output_time_frame,txc_kernel_size,txc_dropout))
+        self.rnn = nn.RNN(input_size=output_step_size*64,batch_first=True,
+                                hidden_size=input_time_frame*input_channels*(joints_to_consider+music_as_joint),dropout=txc_dropout, num_layers=num_layers, bidirectional=bidirectional)
 
-
-        self.prelus = nn.ModuleList()
-        for j in range(n_txcnn_layers):
-            self.prelus.append(nn.PReLU())
-
-
-
-
-    def forward(self, x):
+    def forward(self, x, x_audio, x_audio_future):
+        num_gcn = 0
         for gcn in (self.st_gcnns):
+            if(num_gcn == 0):
+                #x_audio shape assumes is N*num_music_dim*num_time_frame*1
+                x_audio = self.audio_cnn(x_audio)
+            elif(num_gcn == 1)
+            #x audio here is N*64*num_time_frame*1
+            #x is N*64*num_time_frame*25
+                x = torch.cat(x,x_audio, dim = 3)
             x = gcn(x)
+            num_gcn = num_gcn+1
 
-        x= x.permute(0,2,1,3) # prepare the input for the Time-Extrapolator-CNN (NCTV->NTCV)
+        x = x.view(1, x.shape[0], -1)
+        x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
 
-        x=self.prelus[0](self.txcnns[0](x))
+        # x_future  N*num_music_dim*num_time_frame*1
+        x_audio_future = self.rnn_audio_cnn(x_audio_future)
+        seq_length = output_time_frame / output_step_size
+        # x future is now N*64*num_time_frame*1
+        x_audio_future = x_audio_future.view(x.shape[0],seq_length,-1)
 
-        for i in range(1,self.n_txcnn_layers):
-            x = self.prelus[i](self.txcnns[i](x)) +x # residual connection
-
+        x = self.rnn(x_audio_future, x.view(x.shape[0],-1))
+        x = x.view(x.shape[0],)
         return x
