@@ -93,15 +93,17 @@ def train():
 			running_loss=0
 			n=0
 			for cnt,batch in enumerate(vald_loader):
-				batch, _ = batch
+				cnt, batch = batch
+                batch, _ = batch
 				batch=batch.to(device)
 				batch_dim=batch.shape[0]
 				n+=batch_dim
 
 
-				sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
-				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//3,3)
-
+				# sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
+				# sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//3,3)
+                sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
+    			sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
 				sequences_predict=model(sequences_train).permute(0,1,3,2)
 
@@ -133,7 +135,7 @@ def test():
 	accum_loss=0
 	n_batches=0 # number of batches for all the sequences
 	actions=define_actions(args.actions_to_consider)
-	
+
 	dim_used =np.arange(219)
 	# joints at same loc
 	# joint_to_ignore = np.array([16, 20, 23, 24, 28, 31])
@@ -161,9 +163,10 @@ def test():
 
 				all_joints_seq=batch.clone()[:, args.input_n:args.input_n+args.output_n,:]
 
-				sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
-				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, :]
-
+				# sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
+				# sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, :]
+                sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
+    			sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
 
 				sequences_predict=model(sequences_train).permute(0,1,3,2).contiguous().view(-1,args.output_n,len(dim_used))
@@ -175,13 +178,13 @@ def test():
 
 				all_joints_seq[:,:,index_to_ignore] = all_joints_seq[:,:,index_to_equal]
 
-				loss=mpjpe_error(all_joints_seq.view(-1,args.output_n,32,3),sequences_gt.view(-1,args.output_n,32,3))
-				running_loss+=loss*batch_dim
-				accum_loss+=loss*batch_dim
+				# loss=mpjpe_error(all_joints_seq.view(-1,args.output_n,32,3),sequences_gt.view(-1,args.output_n,32,3))
+				# running_loss+=loss*batch_dim
+				# accum_loss+=loss*batch_dim
 
-		print('loss at test subject for action : '+str(action)+ ' is: '+ str(running_loss/n))
+		print('loss at test subject for action : '+str(action)+ ' is: '+str(0)) #str(running_loss/n))
 		n_batches+=n
-	print('overall average loss in mm is: '+str(accum_loss/n_batches))
+	#print('overall average loss in mm is: '+str(accum_loss/n_batches))
 
 
 if __name__ == '__main__':
