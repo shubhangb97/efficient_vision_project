@@ -200,7 +200,7 @@ class Model(nn.Module):
                  input_time_frame,
                  output_time_frame,
                  st_gcnn_dropout,
-                 joints_to_consider, music_dim,
+                 joints_to_consider, music_dim, music_as_joint,
                  n_txcnn_layers,
                  txc_kernel_size,
                  txc_dropout,step_size, output_step_size,
@@ -261,5 +261,6 @@ class Model(nn.Module):
         x_audio_future = x_audio_future.view(x.shape[0],seq_length,-1)
 
         x = self.rnn(x_audio_future, x.view(x.shape[0],-1))
-        x = x.view(x.shape[0],)
+        x = x.view(x.shape[0],seq_length,input_time_frame,input_channels,joints_to_consider+music_as_joint)
+        x = x[:,seq_length,input_time_frame-output_step_size:,:,0:-1]
         return x

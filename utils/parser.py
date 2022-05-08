@@ -15,7 +15,10 @@ parser.add_argument('--input_n',type=int,default=120,help="number of model's inp
 parser.add_argument('--output_n',type=int,default=20,help="number of model's output frames")
 parser.add_argument('--skip_rate',type=int,default=1,choices=[1,5],help='rate of frames to skip,defaults=1 for H36M or 5 for AMASS/3DPW')
 parser.add_argument('--joints_to_consider',type=int,default=25,choices=[16,18,22,73],help='number of joints to use, defaults=16 for H36M angles, 22 for H36M 3D or 18 for AMASS/3DPW')
-parser.add_argument('--music_dim',type=int,default=1,help='number of music dims')
+parser.add_argument('--music_dim',type=int,default=35,help='number of music feature dims')
+parser.add_argument('--step_size',type=int,default=20,help='Step size for input of RNN')
+parser.add_argument('--output_step_size',type=int,default=10,help='Step size for output of RNN')
+parser.add_argument('--music_as_joint',type=int,default=1,help='Number of equivalent joints all music features to be considered as')
 
 
 #ARGS FOR THE MODEL
