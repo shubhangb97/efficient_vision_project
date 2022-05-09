@@ -266,7 +266,10 @@ class Model(nn.Module):
         x_audio_future = x_audio_future.view(x_audio_future.shape[0],seq_length,-1)
         #breakpoint()
         x,_ = self.rnn(x_audio_future, x)
-        x = x.view(x.shape[0],seq_length*self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint)
-        x = x[:,self.input_time_frame-self.output_time_frame:,:,0:-1]
+        x = x.reshape((x.shape[0],seq_length,self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint))
+        x = x[:,:,self.input_time_frame-self.output_step_size:,:,0:-1]
+        #breakpoint()
+        x = x.reshape(x.shape[0], x.shape[1]*x.shape[2],x.shape[3], x.shape[4] )#[:,:,:,0:-1]
+        #breakpoint()
         # batch size, seq_length
         return x
