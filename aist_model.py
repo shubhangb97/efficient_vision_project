@@ -54,7 +54,6 @@ class ConvTemporalGraphical(nn.Module):
         self.Z.data.uniform_(-stdv,stdv)
         '''
     def forward(self, x):
-        breakpoint()
         x = torch.einsum('nctv,vtq->ncqv', (x, self.T))
         ## x=self.prelu(x)
         x = torch.einsum('nctv,tvw->nctw', (x, self.A))
@@ -204,7 +203,7 @@ class Model(nn.Module):
                  txc_dropout,step_size, output_step_size,
                  music_as_joint,
                  num_layers,
-                 bidirectional=True,
+                 bidirectional=False,
                  bias=True):
 
         super(Model,self).__init__()
@@ -249,22 +248,25 @@ class Model(nn.Module):
             elif(num_gcn == 1):
             #x audio here is N*64*num_time_frame*1
             #x is N*64*num_time_frame*25
-                x = torch.cat(x,x_audio, dim = 3)
+
+                x = torch.cat((x,x_audio), dim = 3)
             x = gcn(x)
             num_gcn = num_gcn+1
 
         x= x.permute(0,2,1,3)
-        x = x.view(1, x.shape[0], -1)
+        x = x.reshape((1, x.shape[0], -1))
         x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
 
         # x_future  N*num_music_dim*num_time_frame*1
+        #breakpoint()
         x_audio_future = self.rnn_audio_cnn(x_audio_future)
-        seq_length = self.output_time_frame / self.output_step_size
+        seq_length = int(self.output_time_frame / self.output_step_size)
         # x future is now N*64*num_time_frame*1
-        x_audio_future = x_audio_future.view(x.shape[0],seq_length,-1)
-
-        x = self.rnn(x_audio_future, x.view(x.shape[0],-1))
+        #breakpoint()
+        x_audio_future = x_audio_future.view(x_audio_future.shape[0],seq_length,-1)
+        #breakpoint()
+        x,_ = self.rnn(x_audio_future, x)
         x = x.view(x.shape[0],seq_length*self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint)
-        x = x[:,self.input_time_frame-self.output_time_frame:,0:-1,:]
+        x = x[:,self.input_time_frame-self.output_time_frame:,:,0:-1]
         # batch size, seq_length
         return x

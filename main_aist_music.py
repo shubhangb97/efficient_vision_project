@@ -75,8 +75,8 @@ def train():
 			sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
 			sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-			music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1)
-			music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1)
+			music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1).unsqueeze(3)
+			music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1).unsqueeze(3)
 
 			# print(sequences_train.shape, sequences_gt.shape)
 
@@ -85,6 +85,7 @@ def train():
 			# change
 			sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2)#.permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
+			#breakpoint()
 			loss=mpjpe_error(sequences_predict,sequences_gt)
 
 
@@ -119,8 +120,8 @@ def train():
 				sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
 				sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-				music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1)
-				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1)
+				music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1).unsqueeze(3)
+				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1).unsqueeze(3)
 
 				sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2)
 				metric = get_metric(sequences_predict,sequences_gt)
@@ -191,8 +192,8 @@ def test():
 				sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
 				sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-				music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1)
-				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permut(0,2,1)
+				music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1).unsqueeze(3)
+				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permut(0,2,1).unsqueeze(3)
 
 				sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2).contiguous().view(-1,args.output_n,len(dim_used))
 
