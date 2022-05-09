@@ -83,7 +83,7 @@ def train():
 
 			optimizer.zero_grad()
 			# change
-			sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2)#.permute(0,1,3,2)
+			sequences_predict=model(sequences_train, music_train, music_future).permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
 			assert (sequences_predict.shape == sequences_gt.shape)
 			loss=mpjpe_error(sequences_predict,sequences_gt)
