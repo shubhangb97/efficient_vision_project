@@ -251,6 +251,7 @@ class Model(nn.Module):
             x = gcn(x)
             num_gcn = num_gcn+1
 
+        x= x.permute(0,2,1,3)
         x = x.view(1, x.shape[0], -1)
         x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
 
@@ -261,6 +262,7 @@ class Model(nn.Module):
         x_audio_future = x_audio_future.view(x.shape[0],seq_length,-1)
 
         x = self.rnn(x_audio_future, x.view(x.shape[0],-1))
-        x = x.view(x.shape[0],seq_length,input_time_frame,input_channels,joints_to_consider+music_as_joint)
-        x = x[:,seq_length,input_time_frame-output_step_size:,:,0:-1]
+        x = x.view(x.shape[0],seq_length*input_time_frame,input_channels,joints_to_consider+music_as_joint)
+        x = x[:,input_time_frame-output_time_frame:,0:-1,:]
+        # batch size, seq_length
         return x
