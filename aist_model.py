@@ -159,7 +159,7 @@ class CNN_layer(nn.Module): # This is the simple CNN layer,that performs a 2-D c
         super(CNN_layer,self).__init__()
         self.kernel_size = kernel_size
         padding = ((kernel_size[0] - 1) // 2, (kernel_size[1] - 1) // 2) # padding so that both dimensions are maintained
-        assert kernel_size[0] % 2 == 1 and kernel_size[1] % 2 == 1
+        # assert kernel_size[0] % 2 == 1 and kernel_size[1] % 2 == 1
 
 
 
@@ -201,7 +201,6 @@ class Model(nn.Module):
                  output_time_frame,
                  st_gcnn_dropout,
                  joints_to_consider, music_dim,
-                 n_txcnn_layers,
                  txc_dropout,step_size, output_step_size,
                  music_as_joint,
                  num_layers,
@@ -217,7 +216,6 @@ class Model(nn.Module):
         self.music_as_joint = music_as_joint
         self.music_dim = music_dim
         self.st_gcnns=nn.ModuleList()
-        self.n_txcnn_layers=n_txcnn_layers
         self.txcnns=nn.ModuleList()
 
         self.audio_cnn = CNN_layer(music_dim,64,[3,1],txc_dropout)

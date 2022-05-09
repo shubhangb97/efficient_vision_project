@@ -21,9 +21,9 @@ print('Using device: %s'%device)
 model = Model(
 	args.input_dim,args.input_n,
 	args.output_n,args.st_gcnn_dropout,
-	args.joints_to_consider,
-	args.n_tcnn_layers,args.tcnn_kernel_size,
-	args.tcnn_dropout).to(device)
+	args.joints_to_consider, args.music_dim,
+	args.tcnn_dropout,args.step_size, args.output_step_size,
+	args.music_as_joint, args.n_tcnn_layers).to(device)
 
 print('total number of parameters of the network is: '+str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
