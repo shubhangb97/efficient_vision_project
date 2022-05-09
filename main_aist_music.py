@@ -12,7 +12,7 @@ from utils.data_utils import define_actions
 from utils.h36_3d_viz import visualize
 from utils.parser import args
 from pdb import set_trace as breakpoint
-from metric import get_metric
+from metric import get_metric, get_3d_metric
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
@@ -124,7 +124,7 @@ def train():
 				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1).unsqueeze(3)
 
 				sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2)
-				metric = get_metric(sequences_predict,sequences_gt)
+				metric = get_3d_metric(sequences_predict,sequences_gt)
 
 
 				loss=mpjpe_error(sequences_predict,sequences_gt)

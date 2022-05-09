@@ -52,6 +52,8 @@ def train():
 	# assumed the x y z are 9*1 with 0 pads for each dimension
 	running_metric = 0
 	divi = 0
+	curr_train_loss = 0
+	curr_val_loss = 0
 	for epoch in range(args.n_epochs):
 		running_loss=0
 		n=0
@@ -92,9 +94,9 @@ def train():
 
 			optimizer.step()
 			running_loss += loss*batch_dim
-		# print ("BATCHES DONE: ", running_metric/divi)
-
-		train_loss.append(running_loss.detach().cpu()/n)
+		print ("BATCHES DONE: ", running_metric/divi)
+		curr_train_loss = running_loss.detach().cpu()/n
+		train_loss.append(curr_train_loss)
 		model.eval()
 		with torch.no_grad():
 			running_loss=0
@@ -119,14 +121,15 @@ def train():
 				if cnt % 200 == 0:
 									print('[%d, %5d]  validation loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
 				running_loss+=loss*batch_dim
-			val_loss.append(running_loss.detach().cpu()/n)
+			curr_val_loss = running_loss.detach().cpu()/n
+			val_loss.append(curr_val_loss)
 		if args.use_scheduler:
 			scheduler.step()
 
 
 		if (epoch+1)%10==0:
 			print('----saving model-----')
-			torch.save(model.state_dict(),os.path.join(args.model_path,model_name+"e_%d_v%.3f_t%.3f" % (epoch,val_loss, train_loss)))
+			torch.save(model.state_dict(),os.path.join(args.model_path,model_name+"e%d_v%.3f_t%.3f" % (epoch,curr_val_loss, curr_train_loss)))
 
 
 			plt.figure(1)
