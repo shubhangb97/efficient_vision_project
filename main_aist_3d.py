@@ -105,7 +105,7 @@ def train():
 				sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
 				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-				sequences_predict=model(sequences_train).permute(0,1,3,2)
+				sequences_predict=model(sequences_train).permute(0,3,1,2)
 
 
 				loss=mpjpe_error(sequences_predict,sequences_gt)
@@ -169,7 +169,7 @@ def test():
 				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
 
-				sequences_predict=model(sequences_train).permute(0,1,3,2).contiguous().view(-1,args.output_n,len(dim_used))
+				sequences_predict=model(sequences_train).permute(0,3,1,2).contiguous().view(-1,args.output_n,len(dim_used))
 
 
 

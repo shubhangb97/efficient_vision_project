@@ -12,6 +12,7 @@ from utils.data_utils import define_actions
 from utils.h36_3d_viz import visualize
 from utils.parser import args
 from pdb import set_trace as breakpoint
+from metric import get_metric
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
@@ -20,13 +21,13 @@ print('Using device: %s'%device)
 model = Model(
 	args.input_dim,args.input_n,
 	args.output_n,args.st_gcnn_dropout,
-	args.joints_to_consider,args.music_dim,
+	args.joints_to_consider,
 	args.n_tcnn_layers,args.tcnn_kernel_size,
 	args.tcnn_dropout).to(device)
 
 print('total number of parameters of the network is: '+str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
-model_name='aist_3d_'+str(args.output_n)+'frames_ckpt'
+model_name='aist_music_'+str(args.output_n)+'frames_ckpt'
 
 def train():
 
@@ -47,7 +48,12 @@ def train():
 	vald_loader = DataLoader(vald_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
 	dim_used = np.arange(225) # 25 * 9
+	music_dim_used = np.arange(35)
 	# assumed the x y z are 9*1 with 0 pads for each dimension
+
+	curr_train_loss = None
+	curr_val_loss = None
+	curr_metric = None
 
 	for epoch in range(args.n_epochs):
 		running_loss=0
@@ -55,24 +61,29 @@ def train():
 		model.train()
 		for batch in enumerate(data_loader):
 			cnt, batch = batch
-			batch, _ = batch
+			p3_batch, music_batch = batch
 			# print(len(batch))
-			batch=batch.to(device)
-			batch_dim=batch.shape[0]
+			p3_batch=p3_batch.to(device)
+			music_batch=music_batch.to(device)
+			batch_dim=p3_batch.shape[0]
 			n+=batch_dim
-			assert batch.shape[2] == 225
+			assert p3_batch.shape[2] == 225
+			assert music_batch.shape[2] == 35
 			# print(batch.shape)
 
 			# sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
-			sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
-			sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
+			sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
+			sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
+
+			music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1)
+			music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1)
 
 			# print(sequences_train.shape, sequences_gt.shape)
 
 
 			optimizer.zero_grad()
 			# change
-			sequences_predict=model(sequences_train).permute(0,3,1,2)#.permute(0,1,3,2)
+			sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2)#.permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
 			loss=mpjpe_error(sequences_predict,sequences_gt)
 
@@ -87,39 +98,49 @@ def train():
 			optimizer.step()
 			running_loss += loss*batch_dim
 
-		train_loss.append(running_loss.detach().cpu()/n)
+		curr_train_loss = running_loss.detach().cpu()/n
+		train_loss.append(curr_train_loss)
 		model.eval()
 		with torch.no_grad():
 			running_loss=0
+			running_metric=0
 			n=0
 			for batch in enumerate(vald_loader):
 				cnt, batch = batch
-				batch, audio_batch = batch
-				batch=batch.to(device)
-				batch_dim=batch.shape[0]
+				p3_batch, music_batch = batch
+				p3_batch=p3_batch.to(device)
+				music_batch=music_batch.to(device)
+				batch_dim=p3_batch.shape[0]
 				n+=batch_dim
 
 
 				# sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
 				# sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//3,3)
-				sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
-				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
+				sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
+				sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-				sequences_predict=model(sequences_train).permute(0,1,3,2)
+				music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1)
+				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permute(0,2,1)
+
+				sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2)
+				metric = get_metric(sequences_predict,sequences_gt)
 
 
 				loss=mpjpe_error(sequences_predict,sequences_gt)
 				if cnt % 200 == 0:
-									print('[%d, %5d]  validation loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
+									print('[%d, %5d]  validation loss: %.3f, metric: %.3f' %(epoch + 1, cnt + 1, loss.item(), metric))
 				running_loss+=loss*batch_dim
-			val_loss.append(running_loss.detach().cpu()/n)
+				running_metric+=metric*batch_dim
+			curr_val_loss = running_loss.detach().cpu()/n
+			curr_metric = running_metric/n
+			val_loss.append(curr_val_loss)
 		if args.use_scheduler:
 			scheduler.step()
 
 
 		if (epoch+1)%10==0:
 			print('----saving model-----')
-			torch.save(model.state_dict(),os.path.join(args.model_path,model_name+"e_%d_v%.3f_t%.3f" % (epoch,val_loss, train_loss)))
+			torch.save(model.state_dict(),os.path.join(args.model_path,model_name+"e%d_v%.3f_t%.3f_m%.3f" % (epoch,curr_val_loss, curr_train_loss, curr_metric)))
 
 
 			plt.figure(1)
@@ -136,7 +157,8 @@ def test():
 	n_batches=0 # number of batches for all the sequences
 	actions=define_actions(args.actions_to_consider)
 
-	dim_used =np.arange(219)
+	dim_used =np.arange(225)
+	music_dim_used =np.arange(35)
 	# joints at same loc
 	# joint_to_ignore = np.array([16, 20, 23, 24, 28, 31])
 	joint_to_ignore = np.array([])
@@ -155,9 +177,10 @@ def test():
 			with torch.no_grad():
 
 				cnt, batch = batch
-				batch, _ = batch
-				batch=batch.to(device)
-				batch_dim=batch.shape[0]
+				p3_batch, music_batch = batch
+				p3_batch=p3_batch.to(device)
+				music_batch=music_batch.to(device)
+				batch_dim=p3_batch.shape[0]
 				n+=batch_dim
 
 
@@ -165,11 +188,13 @@ def test():
 
 				# sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//3,3).permute(0,3,1,2)
 				# sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, :]
-				sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
-				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
+				sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
+				sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
+				music_train=music_batch[:, 0:args.input_n, music_dim_used].permute(0,2,1)
+				music_future=music_batch[:, args.input_n:args.input_n+args.output_n, music_dim_used].permut(0,2,1)
 
-				sequences_predict=model(sequences_train).permute(0,1,3,2).contiguous().view(-1,args.output_n,len(dim_used))
+				sequences_predict=model(sequences_train, music_train, music_future).permute(0,3,1,2).contiguous().view(-1,args.output_n,len(dim_used))
 
 
 

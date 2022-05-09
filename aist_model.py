@@ -200,10 +200,11 @@ class Model(nn.Module):
                  input_time_frame,
                  output_time_frame,
                  st_gcnn_dropout,
-                 joints_to_consider, music_dim, music_as_joint,
+                 joints_to_consider, music_dim,
                  n_txcnn_layers,
-                 txc_kernel_size,
                  txc_dropout,step_size, output_step_size,
+                 music_as_joint,
+                 num_layers,
                  bidirectional=True,
                  bias=True):
 
@@ -211,6 +212,9 @@ class Model(nn.Module):
         self.input_time_frame=input_time_frame
         self.output_time_frame=output_time_frame
         self.joints_to_consider=joints_to_consider
+        self.output_step_size = output_step_size
+        self.input_channels = input_channels
+        self.music_as_joint = music_as_joint
         self.music_dim = music_dim
         self.st_gcnns=nn.ModuleList()
         self.n_txcnn_layers=n_txcnn_layers
@@ -244,7 +248,7 @@ class Model(nn.Module):
             if(num_gcn == 0):
                 #x_audio shape assumes is N*num_music_dim*num_time_frame*1
                 x_audio = self.audio_cnn(x_audio)
-            elif(num_gcn == 1)
+            elif(num_gcn == 1):
             #x audio here is N*64*num_time_frame*1
             #x is N*64*num_time_frame*25
                 x = torch.cat(x,x_audio, dim = 3)
@@ -257,12 +261,12 @@ class Model(nn.Module):
 
         # x_future  N*num_music_dim*num_time_frame*1
         x_audio_future = self.rnn_audio_cnn(x_audio_future)
-        seq_length = output_time_frame / output_step_size
+        seq_length = self.output_time_frame / self.output_step_size
         # x future is now N*64*num_time_frame*1
         x_audio_future = x_audio_future.view(x.shape[0],seq_length,-1)
 
         x = self.rnn(x_audio_future, x.view(x.shape[0],-1))
-        x = x.view(x.shape[0],seq_length*input_time_frame,input_channels,joints_to_consider+music_as_joint)
-        x = x[:,input_time_frame-output_time_frame:,0:-1,:]
+        x = x.view(x.shape[0],seq_length*self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint)
+        x = x[:,self.input_time_frame-self.output_time_frame:,0:-1,:]
         # batch size, seq_length
         return x

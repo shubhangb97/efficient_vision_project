@@ -45,7 +45,7 @@ class Datasets(Dataset):
 
         fs = np.arange(start_frame, start_frame + self.in_n + self.out_n, self.sample_rate)
 
-        return torch.concat((torch.zeros(fs.shape[0], 6), self.p3d[key][fs]), axis=1), self.audio[key][fs]
+        return torch.cat((torch.zeros(fs.shape[0], 6), self.p3d[key][fs]), axis=1), self.audio[key][fs]
 
 if __name__ == '__main__':
     print("Testing AIST++ dataset")
