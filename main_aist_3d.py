@@ -12,6 +12,8 @@ from utils.data_utils import define_actions
 from utils.h36_3d_viz import visualize
 from utils.parser import args
 from pdb import set_trace as breakpoint
+from metric import get_metric
+from metric import get_3d_metric
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
@@ -48,7 +50,8 @@ def train():
 
 	dim_used = np.arange(225) # 25 * 9
 	# assumed the x y z are 9*1 with 0 pads for each dimension
-
+	running_metric = 0
+	divi = 0
 	for epoch in range(args.n_epochs):
 		running_loss=0
 		n=0
@@ -75,7 +78,10 @@ def train():
 			sequences_predict=model(sequences_train).permute(0,3,1,2)#.permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
 			loss=mpjpe_error(sequences_predict,sequences_gt)
-
+			metric = get_3d_metric(sequences_predict,sequences_gt)
+			print (metric)
+			running_metric += metric * sequences_predict.shape[0]
+			divi += sequences_predict.shape[0]
 
 			if cnt % 200 == 0:
 				print('[%d, %5d]  training loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
@@ -86,6 +92,7 @@ def train():
 
 			optimizer.step()
 			running_loss += loss*batch_dim
+		# print ("BATCHES DONE: ", running_metric/divi)
 
 		train_loss.append(running_loss.detach().cpu()/n)
 		model.eval()
