@@ -249,7 +249,7 @@ class Model(nn.Module):
             #x audio here is N*64*num_time_frame*1
             #x is N*64*num_time_frame*25
 
-                x = torch.cat((x,x_audio), dim = 3)
+                x = torch.cat((x,x_audio.repeat(1,1,1,self.music_as_joint)), dim = 3)
             x = gcn(x)
             num_gcn = num_gcn+1
         #x is N*9*num_time_frame*26
@@ -271,7 +271,7 @@ class Model(nn.Module):
         x,_ = self.rnn(x_audio_future, x)
         #output is to be reshaped to as this shape was input x is N*num_time_frame*9*26
         x = x.reshape((x.shape[0],seq_length,self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint))
-        x = x[:,:,self.input_time_frame-self.output_step_size:,:,0:-1]
+        x = x[:,:,self.input_time_frame-self.output_step_size:,:,0:-self.music_as_joint]
         #breakpoint()
         x = x.reshape(x.shape[0], x.shape[1]*x.shape[2],x.shape[3], x.shape[4] )#[:,:,:,0:-1]
         #breakpoint()
