@@ -35,11 +35,13 @@ class ConvTemporalGraphical(nn.Module):
     """
     def __init__(self,
                  time_dim,
-                 joints_dim
+                 joints_dim,
+                 music_dim=0
     ):
         super(ConvTemporalGraphical,self).__init__()
 
         self.A=nn.Parameter(torch.FloatTensor(time_dim, joints_dim,joints_dim)) #learnable, graph-agnostic 3-d adjacency matrix(or edge importance matrix)
+        self.A[:, joints_dim-music_dim:, joints_dim-music_dim:].requires_grad = False
         stdv = 1. / math.sqrt(self.A.size(1))
         self.A.data.uniform_(-stdv,stdv)
 
@@ -87,6 +89,7 @@ class ST_GCNN_layer(nn.Module):
                  time_dim,
                  joints_dim,
                  dropout,
+                 music_dim=0,
                  bias=True):
 
         super(ST_GCNN_layer,self).__init__()
@@ -96,7 +99,7 @@ class ST_GCNN_layer(nn.Module):
         padding = ((self.kernel_size[0] - 1) // 2,(self.kernel_size[1] - 1) // 2)
 
 
-        self.gcn=ConvTemporalGraphical(time_dim,joints_dim) # the convolution layer
+        self.gcn=ConvTemporalGraphical(time_dim,joints_dim,music_dim) # the convolution layer
 
         self.tcn = nn.Sequential(
             nn.Conv2d(
@@ -320,15 +323,15 @@ class ModelWLSTM(nn.Module):
         self.audio_cnn = CNN_layer(music_dim,64,[3,1],txc_dropout)
 
         self.st_gcnns.append(ST_GCNN_layer(input_channels,64,[1,1],1,input_time_frame,
-                                           joints_to_consider,st_gcnn_dropout))
+                                           joints_to_consider,st_gcnn_dropout,music_dim=music_as_joint))
         self.st_gcnns.append(ST_GCNN_layer(64,32,[1,1],1,input_time_frame,
-                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout,music_dim=music_as_joint))
 
         self.st_gcnns.append(ST_GCNN_layer(32,64,[1,1],1,input_time_frame,
-                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout,music_dim=music_as_joint))
 
         self.st_gcnns.append(ST_GCNN_layer(64,input_channels,[1,1],1,input_time_frame,
-                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout,music_dim=music_as_joint))
 
         self.rnn_audio_cnn = CNN_layer(music_dim,64,[step_size,1],txc_dropout)#step_size_removed
 
