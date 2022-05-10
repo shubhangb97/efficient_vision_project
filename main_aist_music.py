@@ -141,7 +141,7 @@ def train():
 			scheduler.step()
 
 
-		if (epoch+1)%10==0:
+		if (epoch+1)%5==0:
 			print('----saving model-----')
 			torch.save(model.state_dict(),os.path.join(args.model_path,model_name+"e%d_v%.3f_t%.3f_m%.3f" % (epoch,curr_val_loss, curr_train_loss, curr_metric)))
 
