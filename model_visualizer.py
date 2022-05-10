@@ -64,7 +64,7 @@ audio_data = torch.load(audio_path)
 
 
 
-vid_name = 'gLO_sBM_c01_d15_mLO2_ch01'
+vid_name = 'gLO_sBM_c01_d15_mLO5_ch10'
 print("Vidoe name:", vid_name)
 
 # a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
@@ -100,35 +100,40 @@ model.eval()
 
 sequences_predict=model(sequences_train).permute(0,3,1,2)
 
+c = torch.cat((sequences_train, sequences_predict), axis=2).permute(0, 2, 3, 1).detach().cpu().numpy()
 
 # b=a.numpy()
 # c=np.concatenate((np.zeros((b.shape[0], 6)), b), axis=1)
 # motion=c.reshape(1, 444, 225)
 
-# smpl_model = SMPL(model_path="/Users/eash/Downloads/SMPL_python_v.1.1.0/smpl/models/SMPL_MALE.pkl", gender='MALE', batch_size=1)
+smpl_model = SMPL(model_path="/Users/eash/Downloads/SMPL_python_v.1.1.0/smpl/models/SMPL_MALE.pkl", gender='MALE', batch_size=1)
 
-# smpl_poses, smpl_trans = recover_to_axis_angles(motion)
-# smpl_poses = np.squeeze(smpl_poses, axis=0)  # (seq_len, 24, 3)
-# smpl_trans = np.squeeze(smpl_trans, axis=0)  # (seq_len, 3)
-# keypoints3d = smpl_model.forward(
-#     global_orient=torch.from_numpy(smpl_poses[:, 0:1]).float(),
-#     body_pose=torch.from_numpy(smpl_poses[:, 1:]).float(),
-#     transl=torch.from_numpy(smpl_trans).float(),
-# ).joints.detach().numpy()   # (seq_len, 24, 3)
+smpl_poses, smpl_trans = recover_to_axis_angles(motion)
+smpl_poses = np.squeeze(smpl_poses, axis=0)  # (seq_len, 24, 3)
+smpl_trans = np.squeeze(smpl_trans, axis=0)  # (seq_len, 3)
+keypoints3d = smpl_model.forward(
+    global_orient=torch.from_numpy(smpl_poses[:, 0:1]).float(),
+    body_pose=torch.from_numpy(smpl_poses[:, 1:]).float(),
+    transl=torch.from_numpy(smpl_trans).float(),
+).joints.detach().numpy()   # (seq_len, 24, 3)
 
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# title = ax.set_title('3D Test')
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+title = ax.set_title('3D Test')
 
-# data=keypoints3d[0]
-# graph = ax.scatter(data[:, 0], data[:, 2], data[:, 1])
+data=keypoints3d[0]
+graph = ax.scatter(data[:, 0], data[:, 2], data[:, 1])
 
-# def update_graph(num):
-#     data=keypoints3d[num]
-#     graph._offsets3d = (data[:, 0], data[:, 2], data[:, 1])
-#     title.set_text('3D Test {}, time={}'.format(vid_name, num))
+def update_graph(num):
+    data=keypoints3d[num]
+    graph._offsets3d = (data[:, 0], data[:, 2], data[:, 1])
+    if num < args.input_n:
+        graph.set(color = 'r')
+    else:
+        graph.set(color = 'b')
+    title.set_text('3D Test {}, time={}'.format(vid_name, num))
 
-# ani = matplotlib.animation.FuncAnimation(fig, update_graph, keypoints3d.shape[0], 
-#                                interval=33, blit=False)
+ani = matplotlib.animation.FuncAnimation(fig, update_graph, keypoints3d.shape[0], 
+                               interval=33, blit=False)
 
-# plt.show()
+plt.show()
