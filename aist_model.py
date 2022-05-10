@@ -41,7 +41,7 @@ class ConvTemporalGraphical(nn.Module):
         super(ConvTemporalGraphical,self).__init__()
 
         self.A=nn.Parameter(torch.FloatTensor(time_dim, joints_dim,joints_dim)) #learnable, graph-agnostic 3-d adjacency matrix(or edge importance matrix)
-        self.A[:, joints_dim-music_dim:, joints_dim-music_dim:].requires_grad = False
+        self.A[:, joints_dim-music_dim:, joints_dim-music_dim:].detach()
         stdv = 1. / math.sqrt(self.A.size(1))
         self.A.data.uniform_(-stdv,stdv)
 
