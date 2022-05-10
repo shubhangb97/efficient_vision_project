@@ -230,7 +230,7 @@ class Model(nn.Module):
         self.st_gcnns.append(ST_GCNN_layer(64,input_channels,[1,1],1,input_time_frame,
                                                joints_to_consider+music_as_joint,st_gcnn_dropout))
 
-        self.rnn_audio_cnn = CNN_layer(music_dim,64,[4,1],txc_dropout)#step_size_removed
+        self.rnn_audio_cnn = CNN_layer(music_dim,64,[step_size,1],txc_dropout)#step_size_removed
 
         self.D = 2 if bidirectional else 1
         self.num_layers_rnn = num_layers
