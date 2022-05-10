@@ -83,6 +83,9 @@ def train():
 
 			optimizer.zero_grad()
 			# change
+			# input sequences_train is of dims N, dim in 1 joint, input_n_frames, joints number
+			# input music_train is N, music_feature_dims, input_time_frames, joints_number_equivalent =1, same for music_future
+			breakpoint()
 			sequences_predict=model(sequences_train, music_train, music_future).permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
 			assert (sequences_predict.shape == sequences_gt.shape)

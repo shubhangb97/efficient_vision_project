@@ -230,7 +230,7 @@ class Model(nn.Module):
         self.st_gcnns.append(ST_GCNN_layer(64,input_channels,[1,1],1,input_time_frame,
                                                joints_to_consider+music_as_joint,st_gcnn_dropout))
 
-        self.rnn_audio_cnn = CNN_layer(music_dim,64,[step_size,1],txc_dropout)
+        self.rnn_audio_cnn = CNN_layer(music_dim,64,[4,1],txc_dropout)#step_size_removed
 
         self.D = 2 if bidirectional else 1
         self.num_layers_rnn = num_layers
@@ -252,20 +252,24 @@ class Model(nn.Module):
                 x = torch.cat((x,x_audio), dim = 3)
             x = gcn(x)
             num_gcn = num_gcn+1
-
+        #x is N*9*num_time_frame*26
         x= x.permute(0,2,1,3)
+        #x is N*num_input_time_frame*9*26
         x = x.reshape((1, x.shape[0], -1))
         x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
 
-        # x_future  N*num_music_dim*num_time_frame*1
+        # x_future  N*num_music_dim*num_output_time_frame*1
         #breakpoint()
         x_audio_future = self.rnn_audio_cnn(x_audio_future)
         seq_length = int(self.output_time_frame / self.output_step_size)
-        # x future is now N*64*num_time_frame*1
+        # x future is now N*64*num_output_time_frame*1
         #breakpoint()
-        x_audio_future = x_audio_future.view(x_audio_future.shape[0],seq_length,-1)
+        x_audio_future = x_audio_future.permute(0,2,1,3)
+        # x future is now N*num_output_time_frame*64*1
+        x_audio_future = x_audio_future.reshape((x_audio_future.shape[0],seq_length,-1))
         #breakpoint()
         x,_ = self.rnn(x_audio_future, x)
+        #output is to be reshaped to as this shape was input x is N*num_time_frame*9*26
         x = x.reshape((x.shape[0],seq_length,self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint))
         x = x[:,:,self.input_time_frame-self.output_step_size:,:,0:-1]
         #breakpoint()
