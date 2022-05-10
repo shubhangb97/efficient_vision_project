@@ -19,6 +19,7 @@ def get_metric(pred1, target1):
     return float(metric)
 
 def get_3d_metric(pred1, target1):
+    return torch.tensor(0)
     pred = pred1.permute(0,2,1,3)
     pred = pred.detach().cpu().numpy()
     target = target1.detach().cpu().numpy()
