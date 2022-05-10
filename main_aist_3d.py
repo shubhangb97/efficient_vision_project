@@ -116,7 +116,7 @@ def train():
 
 				sequences_predict=model(sequences_train).permute(0,1,3,2)
 
-
+				assert (sequences_predict.shape == sequences_gt.shape)
 				loss=mpjpe_error(sequences_predict,sequences_gt)
 				if cnt % 200 == 0:
 									print('[%d, %5d]  validation loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
