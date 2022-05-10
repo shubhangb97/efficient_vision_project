@@ -9,6 +9,7 @@ import matplotlib.animation
 from scipy.spatial.transform import Rotation as R
 from utils.parser import args
 from model import *
+from pdb import set_trace as breakpoint
 
 def eye(n, batch_shape):
     iden = np.zeros(np.concatenate([batch_shape, [n, n]]))
@@ -37,7 +38,7 @@ def get_closest_rotmat(rotmats):
     iden[..., 2, 2] = np.sign(det)
     r_closest = np.matmul(np.matmul(u, iden), vh)
     return r_closest
-    
+
 
 def recover_to_axis_angles(motion):
     batch_size, seq_len, dim = motion.shape
@@ -51,10 +52,10 @@ def recover_to_axis_angles(motion):
     ).as_rotvec().reshape(batch_size, seq_len, 24, 3)
     return axis_angles, transl
 
-prefix = "val"
-p3_path = "/Users/eash/UIUC/CS 598- Vision/project/data/p3d_"+prefix+".pth"
-audio_path = "/Users/eash/UIUC/CS 598- Vision/project/data/audio_"+prefix+".pth"
-model_path = "/Users/eash/UIUC/CS 598- Vision/project/efficient_vision_project/checkpoints/CKPT_3D_AIST/aist_3d_10frames_ckpte39_v0.094_t0.113"
+prefix = "train"#"val"
+p3_path = "../data/p3d_"+prefix+".pth"
+audio_path = "../data/audio_"+prefix+".pth"
+model_path = "./checkpoints/CKPT_3D_AIST/aist_3d_10frames_ckpte39_v0.094_t0.113"
 start_frame = 20
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
@@ -64,7 +65,7 @@ audio_data = torch.load(audio_path)
 
 
 
-vid_name = 'gLO_sBM_c01_d15_mLO5_ch10'
+vid_name =  'gLO_sBM_c01_d15_mLO5_ch10'
 print("Vidoe name:", vid_name)
 
 # a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
@@ -98,15 +99,15 @@ print('total number of parameters of the network is: '+str(sum(p.numel() for p i
 model.load_state_dict(torch.load(os.path.join(model_path), map_location=device))
 model.eval()
 
-sequences_predict=model(sequences_train).permute(0,3,1,2)
-
+sequences_predict=model(sequences_train).permute(0,2,1,3)
+#breakpoint()
 c = torch.cat((sequences_train, sequences_predict), axis=2).permute(0, 2, 3, 1).detach().cpu().numpy()
-
+motion = c.reshape((c.shape[0],c.shape[1],-1))
 # b=a.numpy()
 # c=np.concatenate((np.zeros((b.shape[0], 6)), b), axis=1)
 # motion=c.reshape(1, 444, 225)
 
-smpl_model = SMPL(model_path="/Users/eash/Downloads/SMPL_python_v.1.1.0/smpl/models/SMPL_MALE.pkl", gender='MALE', batch_size=1)
+smpl_model = SMPL(model_path="../data/SMPL_MALE.pkl", gender='MALE', batch_size=1)
 
 smpl_poses, smpl_trans = recover_to_axis_angles(motion)
 smpl_poses = np.squeeze(smpl_poses, axis=0)  # (seq_len, 24, 3)
@@ -133,7 +134,7 @@ def update_graph(num):
         graph.set(color = 'b')
     title.set_text('3D Test {}, time={}'.format(vid_name, num))
 
-ani = matplotlib.animation.FuncAnimation(fig, update_graph, keypoints3d.shape[0], 
-                               interval=33, blit=False)
+ani = matplotlib.animation.FuncAnimation(fig, update_graph, keypoints3d.shape[0],
+                               interval=200, blit=False)
 
 plt.show()
