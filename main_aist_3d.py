@@ -77,7 +77,7 @@ def train():
 
 			optimizer.zero_grad()
 			# change
-			sequences_predict=model(sequences_train).permute(0,1,3,2)#.permute(0,1,3,2)
+			sequences_predict=model(sequences_train).permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
 			loss=mpjpe_error(sequences_predict,sequences_gt)
 			metric = get_3d_metric(sequences_predict,sequences_gt)
