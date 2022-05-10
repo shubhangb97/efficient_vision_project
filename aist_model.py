@@ -277,3 +277,103 @@ class Model(nn.Module):
         #breakpoint()
         # batch size, seq_length
         return x
+
+
+
+
+class ModelWLSTM(nn.Module):
+    """
+    Shape:
+        - Input[0]: Input sequence in :math:`(N, in_channels,T_in, V)` format
+        - Output[0]: Output sequence in :math:`(N,T_out,in_channels, V)` format
+        where
+            :math:`N` is a batch size,
+            :math:`T_{in}/T_{out}` is a length of input/output sequence,
+            :math:`V` is the number of graph nodes.
+            :in_channels=number of channels for the coordiantes(default=3)
+            +
+    """
+
+    def __init__(self,
+                 input_channels,
+                 input_time_frame,
+                 output_time_frame,
+                 st_gcnn_dropout,
+                 joints_to_consider, music_dim,
+                 txc_dropout,step_size, output_step_size,
+                 music_as_joint,
+                 num_layers,
+                 bidirectional=False,
+                 bias=True):
+
+        super(ModelWLSTM,self).__init__()
+        self.input_time_frame=input_time_frame
+        self.output_time_frame=output_time_frame
+        self.joints_to_consider=joints_to_consider
+        self.output_step_size = output_step_size
+        self.input_channels = input_channels
+        self.music_as_joint = music_as_joint
+        self.music_dim = music_dim
+        self.st_gcnns=nn.ModuleList()
+        self.txcnns=nn.ModuleList()
+
+        self.audio_cnn = CNN_layer(music_dim,64,[3,1],txc_dropout)
+
+        self.st_gcnns.append(ST_GCNN_layer(input_channels,64,[1,1],1,input_time_frame,
+                                           joints_to_consider,st_gcnn_dropout))
+        self.st_gcnns.append(ST_GCNN_layer(64,32,[1,1],1,input_time_frame,
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
+
+        self.st_gcnns.append(ST_GCNN_layer(32,64,[1,1],1,input_time_frame,
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
+
+        self.st_gcnns.append(ST_GCNN_layer(64,input_channels,[1,1],1,input_time_frame,
+                                               joints_to_consider+music_as_joint,st_gcnn_dropout))
+
+        self.rnn_audio_cnn = CNN_layer(music_dim,64,[step_size,1],txc_dropout)#step_size_removed
+
+        self.D = 2 if bidirectional else 1
+        self.num_layers_rnn = num_layers
+
+                # at this point, we must permute the dimensions of the gcn network, from (N,C,T,V) into (N,T,C,V)
+        self.rnn = nn.LSTM(input_size=output_step_size*64,batch_first=True,
+                                hidden_size=input_time_frame*input_channels*(joints_to_consider+music_as_joint),dropout=txc_dropout, num_layers=num_layers, bidirectional=bidirectional)
+
+    def forward(self, x, x_audio, x_audio_future):
+        num_gcn = 0
+        for gcn in (self.st_gcnns):
+            if(num_gcn == 0):
+                #x_audio shape assumes is N*num_music_dim*num_time_frame*1
+                x_audio = self.audio_cnn(x_audio)
+            elif(num_gcn == 1):
+            #x audio here is N*64*num_time_frame*1
+            #x is N*64*num_time_frame*25
+
+                x = torch.cat((x,x_audio.repeat(1,1,1,self.music_as_joint)), dim = 3)
+            x = gcn(x)
+            num_gcn = num_gcn+1
+        #x is N*9*num_time_frame*26
+        x= x.permute(0,2,1,3)
+        #x is N*num_input_time_frame*9*26
+        x = x.reshape((1, x.shape[0], -1))
+        x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
+
+        # x_future  N*num_music_dim*num_output_time_frame*1
+        #breakpoint()
+        x_audio_future = self.rnn_audio_cnn(x_audio_future)
+        seq_length = int(self.output_time_frame / self.output_step_size)
+        # x future is now N*64*num_output_time_frame*1
+        #breakpoint()
+        x_audio_future = x_audio_future.permute(0,2,1,3)
+        # x future is now N*num_output_time_frame*64*1
+        x_audio_future = x_audio_future.reshape((x_audio_future.shape[0],seq_length,-1))
+        #breakpoint()
+        x,_ = self.rnn(x_audio_future, (x, x))
+        #output is to be reshaped to as this shape was input x is N*num_time_frame*9*26
+        x = x.reshape((x.shape[0],seq_length,self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint))
+        x = x[:,:,self.input_time_frame-self.output_step_size:,:,0:-self.music_as_joint]
+        #breakpoint()
+        x = x.reshape(x.shape[0], x.shape[1]*x.shape[2],x.shape[3], x.shape[4] )#[:,:,:,0:-1]
+        #breakpoint()
+        # batch size, seq_length
+        return x
