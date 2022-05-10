@@ -27,7 +27,7 @@ model = Model(
 
 print('total number of parameters of the network is: '+str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
-model_name='aist_music_'+str(args.output_n)+'frames_ckpt'
+model_name='aist_music_o'+str(args.output_n)+'_i'+str(args.input_n)+'_m'+(args.music_as_joint)+'_rnn'+str(args.n_tcnn_layers)+'_s'+str(args.step_size)+'_os'+str(args.output_step_size)+'frames_ckpt'
 
 def train():
 
