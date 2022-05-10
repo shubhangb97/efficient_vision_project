@@ -28,7 +28,7 @@ model = Model(
 
 print('total number of parameters of the network is: '+str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
-model_name='aist_3d_o'+str(args.output_n)+'_i'+str(args.input_n)+'_cnn'+str(args.n_tcnn_layers)+'frames_ckpt'
+model_name='aist_final_3d_o'+str(args.output_n)+'_i'+str(args.input_n)+'_cnn'+str(args.n_tcnn_layers)+'frames_ckpt'
 
 def train():
 
