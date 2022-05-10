@@ -81,7 +81,7 @@ def train():
 			#print(sequences_predict.shape, sequences_gt.shape)
 			loss=mpjpe_error(sequences_predict,sequences_gt)
 			metric = get_3d_metric(sequences_predict,sequences_gt)
-			print (metric)
+			# print(metric)
 			running_metric += metric * sequences_predict.shape[0]
 			divi += sequences_predict.shape[0]
 
