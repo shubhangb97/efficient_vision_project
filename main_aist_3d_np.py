@@ -29,7 +29,7 @@ model = Model(
 
 print('total number of parameters of the network is: '+str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
-model_name='aist_final_3d_o'+str(args.output_n)+'_i'+str(args.input_n)+'_cnn'+str(args.n_tcnn_layers)+'frames_ckpt'
+model_name='aist_3d_'+str(args.output_n)+'frames_ckpt'
 
 def train():
 
@@ -78,7 +78,7 @@ def train():
 
 			optimizer.zero_grad()
 			# change
-			sequences_predict=model(sequences_train).permute(0,1,3,2)
+			sequences_predict=model(sequences_train).permute(0,3,1,2)#.permute(0,1,3,2)
 			#print(sequences_predict.shape, sequences_gt.shape)
 			loss=mpjpe_error(sequences_predict,sequences_gt)
 			FID_k,FID_g = get_fid_metric(sequences_predict,sequences_gt)
@@ -115,9 +115,9 @@ def train():
 				sequences_train=batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
 				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
-				sequences_predict=model(sequences_train).permute(0,1,3,2)
+				sequences_predict=model(sequences_train).permute(0,3,1,2)
 
-				assert (sequences_predict.shape == sequences_gt.shape)
+
 				loss=mpjpe_error(sequences_predict,sequences_gt)
 				if cnt % 200 == 0:
 									print('[%d, %5d]  validation loss: %.3f' %(epoch + 1, cnt + 1, loss.item()))
@@ -128,7 +128,7 @@ def train():
 			scheduler.step()
 
 
-		if (epoch+1)%5==0:
+		if (epoch+1)%10==0:
 			print('----saving model-----')
 			torch.save(model.state_dict(),os.path.join(args.model_path,model_name+"e%d_v%.3f_t%.3f" % (epoch,curr_val_loss, curr_train_loss)))
 
@@ -180,7 +180,7 @@ def test():
 				sequences_gt=batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
 
 
-				sequences_predict=model(sequences_train).permute(0,1,3,2).contiguous().view(-1,args.output_n,len(dim_used))
+				sequences_predict=model(sequences_train).permute(0,3,1,2).contiguous().view(-1,args.output_n,len(dim_used))
 
 
 

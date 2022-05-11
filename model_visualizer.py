@@ -55,7 +55,7 @@ def recover_to_axis_angles(motion):
 prefix = "train"#"val"
 p3_path = "../data/p3d_"+prefix+".pth"
 audio_path = "../data/audio_"+prefix+".pth"
-model_path = "./checkpoints/CKPT_3D_AIST/aist_3d_10frames_ckpte39_v0.094_t0.113"
+model_path = "./checkpoints/CKPT_3D_AIST/aist_final_3d_o10_i10_cnn4frames_ckpte19_v0.193_t0.224"
 start_frame = 20
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
@@ -65,12 +65,13 @@ audio_data = torch.load(audio_path)
 
 
 
-vid_name =  'gLO_sBM_c01_d15_mLO5_ch10'
+vid_name =  'gLO_sBM_c01_d15_mLO4_ch04'
 print("Vidoe name:", vid_name)
-
+# for i in p3_data:
+#     print (i)
 # a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
 a = p3_data[vid_name]
-fs = np.arange(start_frame, start_frame + args.input_n + args.output_n, args.skip_rate)
+fs = np.arange(start_frame, start_frame + args.input_n + args.output_n, 2)
 p3d_, audio_ = torch.cat((torch.zeros(fs.shape[0], 6), a[fs]), axis=1), audio_data[vid_name][fs]
 
 p3_batch = p3d_.to(device).unsqueeze(0)
@@ -79,7 +80,7 @@ music_batch = audio_.to(device).unsqueeze(0)
 dim_used = np.arange(225) # 25 * 9
 music_dim_used = np.arange(35)
 
-
+# print (p3_batch[:, 0:args.input_n, dim_used].shape)
 sequences_train=p3_batch[:, 0:args.input_n, dim_used].view(-1,args.input_n,len(dim_used)//args.input_dim,args.input_dim).permute(0,3,1,2)
 
 sequences_gt=p3_batch[:, args.input_n:args.input_n+args.output_n, dim_used].view(-1,args.output_n,len(dim_used)//args.input_dim,args.input_dim)
@@ -116,11 +117,26 @@ keypoints3d = smpl_model.forward(
     global_orient=torch.from_numpy(smpl_poses[:, 0:1]).float(),
     body_pose=torch.from_numpy(smpl_poses[:, 1:]).float(),
     transl=torch.from_numpy(smpl_trans).float(),
-).joints.detach().numpy()   # (seq_len, 24, 3)
+).vertices.detach().numpy()   # (seq_len, 24, 3)
+# print (keypoints3d.global_orient.shape)
+# for i in keypoints3d:
+#     if keypoints3d[i]!=None:
+#         print (i, keypoints3d[i].shape)
+#     else:
+#         print ("NULL",i, keypoints3d[i])
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
+ax.grid(False)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_zticks([])
+plt.axis('off')
 title = ax.set_title('3D Test')
+ax.axes.set_xlim3d(left=-1, right=1) 
+ax.axes.set_ylim3d(bottom=-1.2, top=0.2) 
+ax.axes.set_zlim3d(bottom=5, top=30) 
+keypoints3d[:,:,1] *= 15
 
 data=keypoints3d[0]
 graph = ax.scatter(data[:, 0], data[:, 2], data[:, 1])
@@ -138,3 +154,7 @@ ani = matplotlib.animation.FuncAnimation(fig, update_graph, keypoints3d.shape[0]
                                interval=200, blit=False)
 
 plt.show()
+f = r"../data/animation_"+vid_name+".gif"
+writergif = matplotlib.animation.PillowWriter(fps=10) 
+# writervideo = matplotlib.animation.FFMpegWriter(fps=60) 
+ani.save(f, writer=writergif)
