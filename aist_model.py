@@ -61,9 +61,6 @@ class ConvTemporalGraphical(nn.Module):
         ## x = torch.einsum('nctv,wvtq->ncqw', (x, self.Z))
         return x.contiguous()
 
-
-
-
 class ST_GCNN_layer(nn.Module):
     """
     Shape:
@@ -143,9 +140,6 @@ class ST_GCNN_layer(nn.Module):
         x=self.prelu(x)
         return x
 
-
-
-
 class CNN_layer(nn.Module): # This is the simple CNN layer,that performs a 2-D convolution while maintaining the dimensions of the input(except for the features dimension)
 
     def __init__(self,
@@ -179,7 +173,6 @@ class CNN_layer(nn.Module): # This is the simple CNN layer,that performs a 2-D c
 
 
 # In[11]:
-
 
 class Model(nn.Module):
     """
@@ -303,7 +296,7 @@ class Model_cnn(nn.Module):
                  bidirectional=False,
                  bias=True):
 
-        super(Model,self).__init__()
+        super(Model_cnn,self).__init__()
         self.input_time_frame=input_time_frame
         self.output_time_frame=output_time_frame
         self.joints_to_consider=joints_to_consider
@@ -313,6 +306,7 @@ class Model_cnn(nn.Module):
         self.music_dim = music_dim
         self.st_gcnns=nn.ModuleList()
         self.txcnns=nn.ModuleList()
+        self.num_layers = num_layers
 
         self.audio_cnn = CNN_layer(music_dim,64,[3,1],txc_dropout)
 
@@ -327,12 +321,16 @@ class Model_cnn(nn.Module):
         self.st_gcnns.append(ST_GCNN_layer(64,input_channels,[1,1],1,input_time_frame,
                                                joints_to_consider+music_as_joint,st_gcnn_dropout))
 
-        self.rnn_audio_cnn = CNN_layer(music_dim,64,[step_size,1],txc_dropout)#step_size_removed
+        self.rnn_audio_cnn = CNN_layer(music_dim,input_channels,[3,1],txc_dropout)#step_size_removed
 
                 # at this point, we must permute the dimensions of the gcn network, from (N,C,T,V) into (N,T,C,V)
         self.txcnns.append(CNN_layer(input_time_frame,output_time_frame,txc_kernel_size,txc_dropout)) # with kernel_size[3,3] the dimensinons of C,V will be maintained
-        for i in range(1,n_txcnn_layers):
+        for i in range(1,num_layers):
             self.txcnns.append(CNN_layer(output_time_frame,output_time_frame,txc_kernel_size,txc_dropout))
+
+        self.prelus = nn.ModuleList()
+        for j in range(num_layers):
+            self.prelus.append(nn.PReLU())
 
     def forward(self, x, x_audio, x_audio_future):
         num_gcn = 0
@@ -350,26 +348,23 @@ class Model_cnn(nn.Module):
         #x is N*9*num_time_frame*26
         x= x.permute(0,2,1,3)
         #x is N*num_input_time_frame*9*26
-        x = x.reshape((1, x.shape[0], -1))
-        x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
+        #x = x.reshape((1, x.shape[0], -1))
+        #x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
 
         # x_future  N*num_music_dim*num_output_time_frame*1
         #breakpoint()
         x_audio_future = self.rnn_audio_cnn(x_audio_future)
-        seq_length = int(self.output_time_frame / self.output_step_size)
-        # x future is now N*64*num_output_time_frame*1
-        #breakpoint()
         x_audio_future = x_audio_future.permute(0,2,1,3)
+        x = torch.cat((x,x_audio_future.repeat(1,1,1,self.music_as_joint)), dim = 3)
+
+
+        x=self.prelus[0](self.txcnns[0](x))
+
+        for i in range(1,self.num_layers):
+            x = self.prelus[i](self.txcnns[i](x)) +x
+        #breakpoint()
+        x = x[:,:,:,0:-2*self.music_as_joint]
         # x future is now N*num_output_time_frame*64*1
-        x_audio_future = x_audio_future.reshape((x_audio_future.shape[0],seq_length,-1))
-        #breakpoint()
-        x,_ = self.rnn(x_audio_future, x)
-        #output is to be reshaped to as this shape was input x is N*num_time_frame*9*26
-        x = x.reshape((x.shape[0],seq_length,self.input_time_frame,self.input_channels,self.joints_to_consider+self.music_as_joint))
-        x = x[:,:,self.input_time_frame-self.output_step_size:,:,0:-self.music_as_joint]
-        #breakpoint()
-        x = x.reshape(x.shape[0], x.shape[1]*x.shape[2],x.shape[3], x.shape[4] )#[:,:,:,0:-1]
-        #breakpoint()
         # batch size, seq_length
         return x
 

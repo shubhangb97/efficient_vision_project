@@ -18,7 +18,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device: %s'%device)
 
 
-model = Model(
+model = Model_cnn(
 	args.input_dim,args.input_n,
 	args.output_n,args.st_gcnn_dropout,
 	args.joints_to_consider, args.music_dim,
