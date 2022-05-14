@@ -352,8 +352,9 @@ class Model_cnn(nn.Module):
         #x = x.repeat(self.num_layers_rnn*self.D, 1, 1)
 
         # x_future  N*num_music_dim*num_output_time_frame*1
-        #breakpoint()
+        # breakpoint()
         x_audio_future = self.rnn_audio_cnn(x_audio_future)
+        # breakpoint()
         x_audio_future = x_audio_future.permute(0,2,1,3)
         x = torch.cat((x,x_audio_future.repeat(1,1,1,self.music_as_joint)), dim = 3)
 

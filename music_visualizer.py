@@ -70,7 +70,7 @@ print("Vidoe name:", vid_name)
 
 # a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
 a = p3_data[vid_name]
-fs = np.arange(start_frame, start_frame + args.input_n + args.output_n, args.skip_rate)
+fs = np.arange(start_frame, start_frame + args.input_n + args.output_n, 2)
 p3d_, audio_ = torch.cat((torch.zeros(fs.shape[0], 6), a[fs]), axis=1), audio_data[vid_name][fs]
 
 p3_batch = p3d_.to(device).unsqueeze(0)

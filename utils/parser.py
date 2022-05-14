@@ -61,6 +61,7 @@ parser.add_argument('--model_path',type=str,default='./checkpoints/CKPT_3D_AIST'
 parser.add_argument('--visualize_from',type=str,default='test',choices =['train','val','test'],help= 'choose data split to visualize from(train-val-test)')
 parser.add_argument('--actions_to_consider',default='all',help= 'Actions to visualize.Choose either all or a list of actions')
 parser.add_argument('--n_viz',type=int,default='2',help= 'Numbers of sequences to visaluze for each action')
+parser.add_argument('--auto_regressive_steps',type=int,default=5,help= 'Numbers of steps for autoregressive prediction')
 
 
 

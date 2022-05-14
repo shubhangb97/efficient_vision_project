@@ -48,19 +48,43 @@ def recover_to_axis_angles(motion):
     ).as_rotvec().reshape(batch_size, seq_len, 24, 3)
     return axis_angles, transl
 
-tfrecord_path = "/Users/eash/UIUC/CS 598- Vision/project/tf_sstables/aist_generation_train_v2_tfrecord-00002-of-00020"
-dataset = TFRecordDataset(tfrecord_path, None, None)
-loader = torch.utils.data.DataLoader(dataset, batch_size=1)
-data = next(iter(loader))
 
-vid_name = data['motion_name'][0].numpy()
-vid_name = ''.join([chr(x) for x in vid_name])
+prefix = "train"#"val"
+p3_path = "../data/p3d_"+prefix+".pth"
+audio_path = "../data/audio_"+prefix+".pth"
+model_path = "./checkpoints/CKPT_3D_AIST/aist_final_3d_o10_i10_cnn4frames_ckpte19_v0.193_t0.224"
+start_frame = 16
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print('Using device: %s'%device)
+
+p3_data = torch.load(p3_path)
+audio_data = torch.load(audio_path)
+
+
+
+vid_name =  'gJB_sBM_c01_d09_mJB4_ch10'
 print("Vidoe name:", vid_name)
 
-a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
-b=a.numpy()
-c=np.concatenate((np.zeros((b.shape[0], 6)), b), axis=1)
-motion=c.reshape(1, 444, 225)
+# a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
+a = p3_data[vid_name]
+start_frame = 16
+fs = np.arange(start_frame, start_frame + 10*2 + 10*2, 2)
+p3d_, audio_ = torch.cat((torch.zeros(fs.shape[0], 6), a[fs]), axis=1), audio_data[vid_name][fs]
+
+p3_batch = p3d_.to(device).unsqueeze(0)
+music_batch = audio_.to(device).unsqueeze(0)
+
+dim_used = np.arange(225) # 25 * 9
+music_dim_used = np.arange(35)
+
+
+# a=data['motion_sequence'].reshape((data['motion_sequence_shape'][0][0].item(), data['motion_sequence_shape'][0][1].item()))
+# b=a.numpy()
+# c=np.concatenate((np.zeros((b.shape[0], 6)), b), axis=1)
+c = p3d_.detach().cpu().numpy()
+print(c.shape)
+st=16
+motion=c.reshape(1, c.shape[0], 225)
 
 smpl_model = SMPL(model_path="/Users/eash/Downloads/SMPL_python_v.1.1.0/smpl/models/SMPL_MALE.pkl", gender='MALE', batch_size=1)
 
@@ -71,11 +95,13 @@ keypoints3d = smpl_model.forward(
     global_orient=torch.from_numpy(smpl_poses[:, 0:1]).float(),
     body_pose=torch.from_numpy(smpl_poses[:, 1:]).float(),
     transl=torch.from_numpy(smpl_trans).float(),
-).joints.detach().numpy()   # (seq_len, 24, 3)
+).vertices.detach().numpy()   # (seq_len, 24, 3)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 title = ax.set_title('3D Test')
+ax.grid(False)
+plt.axis('off')
 
 data=keypoints3d[0]
 graph = ax.scatter(data[:, 0], data[:, 2], data[:, 1])
@@ -83,9 +109,14 @@ graph = ax.scatter(data[:, 0], data[:, 2], data[:, 1])
 def update_graph(num):
     data=keypoints3d[num]
     graph._offsets3d = (data[:, 0], data[:, 2], data[:, 1])
-    title.set_text('3D Test {}, time={}'.format(vid_name, num))
+    title.set_text('Ground Truth {}, time={}'.format(vid_name, num))
 
 ani = matplotlib.animation.FuncAnimation(fig, update_graph, keypoints3d.shape[0], 
                                interval=33, blit=False)
 
 plt.show()
+
+f = r"../data/animation_gt_"+vid_name+".gif"
+writergif = matplotlib.animation.PillowWriter(fps=15) 
+# writervideo = matplotlib.animation.FFMpegWriter(fps=60) 
+ani.save(f, writer=writergif)
