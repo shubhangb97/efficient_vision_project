@@ -4,7 +4,7 @@ import numpy as np
 from tfrecord.torch.dataset import TFRecordDataset
 
 
-tf_dir = "../datasets/tf_sstables/"
+tf_dir = "../data/tf_sstables/"
 num_files = None
 prefix = "train"
 #prefix = "val"
@@ -41,5 +41,5 @@ for filename in os.listdir(tf_dir):
         audio[key] = data['audio_sequence'].view((an, ad))
 
 
-torch.save(p3d, "data/p3d_"+prefix+".pth")
-torch.save(audio, "data/audio_"+prefix+".pth")
+torch.save(p3d, "../data/p3d_"+prefix+".pth")
+torch.save(audio, "../data/audio_"+prefix+".pth")
